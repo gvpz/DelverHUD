@@ -9,7 +9,8 @@ public class UIManager : MonoBehaviour
 
     private Character currentCharacter;
     private GameObject currentActiveMenu;
-    private GameObject CS_currentActiveTab;
+    private GameObject CS_currentActiveMenu;
+    private Button CS_currentActiveTab;
 
     [SerializeField] private GameObject mainMenu;
 
@@ -42,16 +43,46 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject loadCharacterMenu;
     [SerializeField] private TMP_Dropdown loadCharacterDropdown;
 
-    [Header("Character Sheet")]
+    [Header("Character Sheet Menus")]
     [SerializeField] private GameObject characterSheetMenu;
+    [SerializeField] private Vector2 CS_tabSize = new(400, 400);
+    [SerializeField] private Material CS_tabMat;
+    [SerializeField] private Material CS_selectedTabMat;
+    [SerializeField] private GameObject CS_statsMenu;
+    [SerializeField] private Button CS_statsTab;
+    [SerializeField] private GameObject CS_skillMenu;
+    [SerializeField] private Button CS_skillTab;
+    [SerializeField] private GameObject CS_featuresMenu;
+    [SerializeField] private Button CS_featuresTab;
+    [SerializeField] private GameObject CS_inventoryMenu;
+    [SerializeField] private Button CS_inventoryTab;
+    [SerializeField] private GameObject CS_achievementMenu;
+    [SerializeField] private Button CS_acievementTab;
 
     [Header("Character Header")]
     [SerializeField] private TMP_Text CS_characterName;
     [SerializeField] private TMP_Text CS_characterLevel;
     [SerializeField] private Slider CS_xpSlider;
 
+    [SerializeField] private GameObject CS_xpWindow;
+    [SerializeField] private TMP_Text CS_xpCounter;
+    [SerializeField] private TMP_InputField CS_xpInput;
+    [SerializeField] private GameObject CS_levelUpButton;
+
+    [SerializeField] private TMP_Text CS_characterWill;
+    [SerializeField] private GameObject CS_willWindow;
+    [SerializeField] private TMP_InputField CS_willInput;
+
     [SerializeField] private TMP_Text CS_characterHealth;
+    [SerializeField] private GameObject CS_healthWindow;
+    [SerializeField] private TMP_InputField CS_healthInput;
+
     [SerializeField] private TMP_Text CS_characterMana;
+    [SerializeField] private GameObject CS_manaWindow;
+    [SerializeField] private TMP_InputField CS_manaInput;
+
+    [Header("Level Up Menu")]
+    [SerializeField] private GameObject CS_levelUpMenu;
 
     [Header("Character Stats")]
     [SerializeField] private TMP_Text CS_strengthScore;
@@ -98,6 +129,13 @@ public class UIManager : MonoBehaviour
     #region Load Character
 
     private List<Character> savedCharacters;
+
+    #endregion
+
+    #region Character Sheet
+
+    private bool healthMenuOpen;
+    private bool manaMenuOpen;
 
     #endregion
 
@@ -263,6 +301,7 @@ public class UIManager : MonoBehaviour
     public void ConfirmCharacterCreation()
     {
         var skills = new List<Skill>();
+        var features = new List<Feature>();
 
         if (skillLevel1 > 0)
             skills.Add(new() { Name = skillName1.text, Score = skillLevel1 });
@@ -274,6 +313,8 @@ public class UIManager : MonoBehaviour
             skills.Add(new() { Name = skillName4.text, Score = skillLevel4 });
         if (skillLevel5 > 0)
             skills.Add(new() { Name = skillName5.text, Score = skillLevel5 });
+
+        features.Add(new() { Name = "Human Will", Description = "“The will is the keystone in the arch of human achievement. It is the culmination of our complex mental faculties. It is the power that rules minds, men and nations.” ~ Thomas Parker Boyd" });
 
 
         var character = new Character()
@@ -291,7 +332,8 @@ public class UIManager : MonoBehaviour
             Charisma = charisma,
             Awareness = awareness,
             Skills = skills,
-            EntropyTokens = 0,
+            WillTokens = 0,
+            Features = features,
         };
 
         currentCharacter = character;
@@ -349,8 +391,10 @@ public class UIManager : MonoBehaviour
         CS_characterName.text = currentCharacter.Name;
         CS_characterLevel.text = "Level: " + currentCharacter.Level.ToString();
 
-        CS_xpSlider.maxValue = 100;
+        var maxXP = CharacterHelper.CalculateXPToNextLevel(currentCharacter.Level);
+        CS_xpSlider.maxValue = maxXP;
         CS_xpSlider.value = currentCharacter.XP;
+        CS_xpCounter.text = $"{currentCharacter.XP}/{maxXP}";
 
         CS_characterHealth.text = currentCharacter.Health.ToString() + "/" + currentCharacter.MaxHealth.ToString();
 
@@ -362,10 +406,186 @@ public class UIManager : MonoBehaviour
         CS_intelligenceScore.text = currentCharacter.Intelligence.ToString();
         CS_charismaScore.text = currentCharacter.Charisma.ToString();
         CS_awarenessScore.text = currentCharacter.Awareness.ToString();
+
+        CS_OpenStatsMenu();
     }
 
-    public void CS_OpenStatsTab()
+    #region Header
+
+
+    #region XP
+
+    public void OpenXPMenu()
     {
+        CS_xpWindow.SetActive(true);
+        CS_xpInput.ActivateInputField();
+    }
+
+    public void CloseXPMenu()
+    {
+        CS_xpWindow.SetActive(false);
+    }
+
+    public void ModifyXP()
+    {
+        if (!float.TryParse(CS_xpInput.text, out var val)) return;
+        var xp = currentCharacter.XP + val;
+        var maxXP = CharacterHelper.CalculateXPToNextLevel(currentCharacter.Level);
+        currentCharacter.XP = xp;
+        if (xp >= maxXP) CS_levelUpButton.SetActive(true);
+        CS_xpSlider.value = xp;
+
+        CS_xpWindow.SetActive(false);
+    }
+
+    public void OpenLevelUpMenu()
+    {
+
+    }
+
+    #endregion
+
+    #region Will
+
+    public void OpenWillMenu()
+    {
+        CS_willWindow.SetActive(true);
+        CS_willInput.ActivateInputField();
+    }
+
+    public void ModifyWill(bool add)
+    {
+        if (!int.TryParse(CS_willInput.text, out var val)) return;
+        var modVal = add ? val : -val;
+        var willTokens = currentCharacter.WillTokens + modVal;
+        if (willTokens < 0) willTokens = 0;
+
+        currentCharacter.WillTokens = willTokens;
+        CS_characterWill.text = willTokens.ToString();
+        CS_willWindow.SetActive(false);
+    }
+
+    #endregion
+
+    #region Health
+
+    public void OpenHealthMenu()
+    {
+        CS_healthWindow.SetActive(true);
+        CS_healthInput.ActivateInputField();
+    }
+
+    public void ModifyHealth(bool add)
+    {
+        Debug.Log("Modify Health Called");
+
+        if(!int.TryParse(CS_healthInput.text, out var val)) return;
+
+        Debug.Log("Parsed Input: " + val);
+
+        var modVal = add ? val : -val;
+        var health = currentCharacter.Health + modVal;
+        if (health < 0) health = 0;
+        if (health > currentCharacter.MaxHealth) health = currentCharacter.MaxHealth;
+
+        Debug.Log("Health = " + health);
+
+        currentCharacter.Health = health;
+        CS_characterHealth.text = $"{health}/{currentCharacter.MaxHealth}";
+        CS_healthWindow.SetActive(false);
+    }
+
+    #endregion
+
+    #region Mana
+
+    public void OpenManaMenu()
+    {
+        CS_manaWindow.SetActive(true);
+        CS_manaInput.ActivateInputField();
+    }
+
+    public void ModifyMana(bool add)
+    {
+        if (!int.TryParse(CS_manaInput.text, out var val)) return;
+        var modVal = add ? val : -val;
+        var mana = currentCharacter.Mana + modVal;
+        if (mana < 0) mana = 0;
+        if (mana > currentCharacter.MaxMana) mana = currentCharacter.MaxMana;
+
+        currentCharacter.Mana = mana;
+        CS_characterMana.text = $"{mana}/{currentCharacter.MaxMana}";
+        CS_manaWindow.SetActive(false);
+    }
+
+    #endregion
+
+    #endregion
+
+    public void CS_OpenStatsMenu()
+    {
+        
+        if (CS_currentActiveMenu == null) CS_currentActiveMenu = CS_statsMenu;
+        if (CS_currentActiveTab == null) CS_currentActiveTab = CS_statsTab;
+        CS_currentActiveTab.GetComponent<RectTransform>().sizeDelta = new Vector2(CS_tabSize.x, CS_tabSize.y / 1.5f);
+        CS_currentActiveTab.image.material = CS_tabMat;
+        CS_currentActiveMenu?.SetActive(false);
+        CS_currentActiveMenu = CS_statsMenu;
+        CS_currentActiveTab = CS_statsTab;
+        CS_currentActiveMenu?.SetActive(true);
+        CS_currentActiveTab.GetComponent<RectTransform>().sizeDelta = new Vector2(CS_tabSize.x, CS_tabSize.y * 1.5f);
+        CS_currentActiveTab.image.material = CS_selectedTabMat;
+
+    }
+
+    public void CS_OpenSkillsMenu()
+    {
+        CS_currentActiveTab.GetComponent<RectTransform>().sizeDelta = new Vector2(CS_tabSize.x, CS_tabSize.y / 1.5f);
+        CS_currentActiveTab.image.material = CS_tabMat;
+        CS_currentActiveMenu?.SetActive(false);
+        CS_currentActiveMenu = CS_skillMenu;
+        CS_currentActiveTab = CS_skillTab;
+        CS_currentActiveMenu?.SetActive(true);
+        CS_currentActiveTab.GetComponent<RectTransform>().sizeDelta = new Vector2(CS_tabSize.x, CS_tabSize.y * 1.5f);
+        CS_currentActiveTab.image.material = CS_selectedTabMat;
+
+    }
+
+    public void CS_OpenFeaturesMenu()
+    {
+        CS_currentActiveTab.GetComponent<RectTransform>().sizeDelta = new Vector2(CS_tabSize.x, CS_tabSize.y / 1.5f);
+        CS_currentActiveTab.image.material = CS_tabMat;
+        CS_currentActiveMenu?.SetActive(false);
+        CS_currentActiveMenu = CS_featuresMenu;
+        CS_currentActiveTab = CS_featuresTab;
+        CS_currentActiveMenu?.SetActive(true);
+        CS_currentActiveTab.GetComponent<RectTransform>().sizeDelta = new Vector2(CS_tabSize.x, CS_tabSize.y * 1.5f);
+        CS_currentActiveTab.image.material = CS_selectedTabMat;
+    }
+
+    public void CS_OpenInventoryMenu()
+    {
+        CS_currentActiveTab.GetComponent<RectTransform>().sizeDelta = new Vector2(CS_tabSize.x, CS_tabSize.y / 1.5f);
+        CS_currentActiveTab.image.material = CS_tabMat;
+        CS_currentActiveMenu?.SetActive(false);
+        CS_currentActiveMenu = CS_inventoryMenu;
+        CS_currentActiveTab = CS_inventoryTab;
+        CS_currentActiveMenu?.SetActive(true);
+        CS_currentActiveTab.GetComponent<RectTransform>().sizeDelta = new Vector2(CS_tabSize.x, CS_tabSize.y * 1.5f);
+        CS_currentActiveTab.image.material = CS_selectedTabMat;
+
+    }
+
+    public void CS_OpenAchievementMenu()
+    {
+        CS_currentActiveTab.GetComponent<RectTransform>().sizeDelta = new Vector2(CS_tabSize.x, CS_tabSize.y / 1.5f);
+        CS_currentActiveTab.image.material = CS_tabMat;
+        CS_currentActiveMenu?.SetActive(false);
+        CS_currentActiveMenu = CS_achievementMenu;
+        CS_currentActiveTab = CS_acievementTab;
+        CS_currentActiveMenu?.SetActive(true);
+        CS_currentActiveTab.GetComponent<RectTransform>().sizeDelta = new Vector2(CS_tabSize.x, CS_tabSize.y * 1.5f);
+        CS_currentActiveTab.image.material = CS_selectedTabMat;
 
     }
 

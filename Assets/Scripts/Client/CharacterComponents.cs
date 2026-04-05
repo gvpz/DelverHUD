@@ -48,6 +48,9 @@ public class CharacterHelper
 
         return list;
     }
+
+    public static float CalculateXPToNextLevel(int level) => level * 25;
+
 }
 
 [Serializable]
@@ -67,7 +70,8 @@ public class Character
     public int Charisma;
     public int Awareness;
     public List<Skill> Skills = new List<Skill>();
-    public int EntropyTokens;
+    public int WillTokens;
+    public List<Feature> Features = new List<Feature>();
 }
 
 [Serializable]
@@ -76,4 +80,11 @@ public class Skill
     public string Name;
     public int Score;
     public float XP;
+}
+
+[Serializable]
+public class Feature
+{
+    public string Name;
+    public string Description;
 }
